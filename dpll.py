@@ -1,7 +1,7 @@
 def dpll(clauses, assignment=[]):
     if not clauses:
         return assignment
-    if [] in clauses:
+    if any([c == [] for c in clauses]):
         return False
     
     for clause in clauses:
