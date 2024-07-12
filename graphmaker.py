@@ -1,49 +1,60 @@
 import numpy as np
-import networkx as nx
-import rdimacs as rd
+import igraph as ig
+from tqdm import tqdm
+import rdimacs as rd 
 import plotly.graph_objs as go
 
+# Updated to igraph because it is straight up faster.
 
-def make_graph_positions(filename='4_queens.txt'):
-
+def make_graph_positions_optimized(filename, max_edges=100000): #disable max_edges if you have a beefy machine
     num_vars, clauses = rd.read_dimacs(filename)
-
-    # Empty graph
-    G = nx.Graph()
-
-    # Nodes
-    for i in range(1, num_vars + 1):
-        G.add_node(i)
-
-    # Edges based on clauses
-    for clause in clauses:
-        for i in range(len(clause)):
-            for j in range(i + 1, len(clause)):
-                G.add_edge(abs(clause[i]), abs(clause[j]))
-
-    # Get node positions in 3D space using Fruchterman-Reingold layout as in the original DPVis
-    pos = nx.fruchterman_reingold_layout(G, dim=3)  
-    # Uncomment this to try my favorite type of layout pos = nx.kamada_kawai_layout(G, dim=3)
-
-    # Extract positions for Plotly
-    Xn = [pos[k][0] for k in G.nodes()]
-    Yn = [pos[k][1] for k in G.nodes()]
-    Zn = [pos[k][2] for k in G.nodes()]
-    labels = [str(k) for k in G.nodes()]
-
-    # Assign colors based on the node labels (mapping to numerical values)
+    G = generate_interaction_graph_optimized(num_vars, clauses)
+    
+    print("Calculating layout...")
+    pos = G.layout_drl(dim=3)
+    pos = np.array(pos)
+    
+    Xn, Yn, Zn = pos.T
+    labels = [str(k+1) for k in range(2 * num_vars)]
+    
     color_mapping = {label: idx for idx, label in enumerate(labels)}
-    node_colors = [color_mapping[label] for label in labels]
-
-    Xe = []
-    Ye = []
-    Ze = []
-    for e in G.edges():
-        Xe += [pos[e[0]][0], pos[e[1]][0], None]
-        Ye += [pos[e[0]][1], pos[e[1]][1], None]
-        Ze += [pos[e[0]][2], pos[e[1]][2], None]
-
+    node_colors = np.arange(2 * num_vars)
+    
+    print("Preparing edge data...")
+    edges = np.array(G.get_edgelist())
+    
+    # Downsample edges if there are too many
+    if len(edges) > max_edges:
+        downsample_rate = len(edges) // max_edges
+        edges = edges[::downsample_rate]
+    
+    Xe = np.empty((len(edges) * 3,))
+    Ye = np.empty((len(edges) * 3,))
+    Ze = np.empty((len(edges) * 3,))
+    
+    Xe[::3], Xe[1::3], Xe[2::3] = pos[edges[:, 0], 0], pos[edges[:, 1], 0], None
+    Ye[::3], Ye[1::3], Ye[2::3] = pos[edges[:, 0], 1], pos[edges[:, 1], 1], None
+    Ze[::3], Ze[1::3], Ze[2::3] = pos[edges[:, 0], 2], pos[edges[:, 1], 2], None
+    
     return Xn, Yn, Zn, labels, color_mapping, node_colors, Xe, Ye, Ze
+
+def generate_interaction_graph_optimized(num_vars, clauses):
+    edges = set()
+    for clause in tqdm(clauses, desc="Generating graph"):
+        clause_edges = set((literal_to_id(a, num_vars), literal_to_id(b, num_vars))
+                           for i, a in enumerate(clause)
+                           for b in clause[i+1:])
+        edges.update(clause_edges)
+    
+    G = ig.Graph(n=2*num_vars, edges=list(edges))
+    return G
+
+def literal_to_id(literal, num_vars):
+    """Maps a literal to a unique node ID."""
+    if literal > 0:
+        return literal - 1  # Positive literals: 0 to num_vars-1
+    else:
+        return num_vars - literal - 1  # Negative literals: num_vars to 2*num_vars-1
 
 def plot_graph_from_positions(Xn, Yn, Zn, labels, color_mapping, node_colors, Xe, Ye, Ze):
     trace1 = go.Scatter3d(
