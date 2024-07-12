@@ -10,4 +10,4 @@ This codebase includes a simplified DPLL in Python. Planning to add MiniSAT soon
 
 I made this tool as an alternative to DPVis for teaching the DPLL algorithm, and for forming an intuitive sense between structure and hardness of SAT instances.
 
-![Code_Z5TGEn3Gs6](https://github.com/danielespo/PyDPvis/assets/5409057/a9f724e8-5278-4329-835f-306400a54f54)
+![Code_tLWB8MWHTf](https://github.com/user-attachments/assets/f2564907-e1d4-4fa4-b17e-bc8210c21adf)
