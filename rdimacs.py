@@ -1,5 +1,3 @@
-import networkx as nx
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 def read_dimacs(filename):
