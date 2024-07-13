@@ -10,6 +10,7 @@ def read_dimacs(filename):
             elif line.startswith('c') or line.startswith('%') or line.startswith('0'):
                 continue
             else:
-                clause = list(map(int, line.strip().split()))
-                clauses.append(clause)
+                clause = [int(lit) for lit in line.strip().split() if int(lit) != 0]
+                if clause:  # Only append non-empty clauses
+                    clauses.append(clause)
     return num_vars, clauses
